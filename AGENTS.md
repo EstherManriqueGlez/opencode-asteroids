@@ -31,3 +31,4 @@ npx serve .
 - Ship has 3s invincibility on spawn (blinking effect via `Math.floor(inv * 8) % 2`)
 - Asteroid sizes are 1 (small), 2 (medium), 3 (large) — indexed into `RADII`, `SPEEDS`, `POINTS` arrays
 - No tests, no linting, no formatter — verify changes manually in browser
+- Ship skins live in the `SKINS` registry (data-driven: `body`, `stroke`, `fill`, `glow`, `thrust`); add new entries there. `currentSkinIndex` persists via `localStorage['asteroids.skin']` and cycles with `S`

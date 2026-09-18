@@ -191,6 +191,70 @@ class ShootingStar extends Asteroid {
   }
 }
 
+// ── Skins de la nave ──────────────────────────────────────────────────────────
+// Siluetas con el morro en +x; se rotan con el ángulo de la nave.
+const SKINS = [
+  {
+    id: 'classic',
+    name: 'CLÁSICA',
+    body: [[20, 0], [-12, -9], [-7, 0], [-12, 9]],
+    stroke: '#fff',
+    fill: null,
+    lineWidth: 1.5,
+    glow: 0,
+    thrust: { x: -8, half: 4, min: 6, max: 14, colors: ['rgba(255, 130, 0, 0.85)'] },
+  },
+  {
+    id: 'neon',
+    name: 'NEÓN',
+    body: [[22, 0], [3, -4], [-10, -10], [-4, 0], [-10, 10], [3, 4]],
+    stroke: '#3df5ff',
+    fill: 'rgba(61, 245, 255, 0.08)',
+    lineWidth: 1.8,
+    glow: 12,
+    thrust: { x: -9, half: 3, min: 8, max: 18, colors: ['rgba(61, 245, 255, 0.9)', 'rgba(180, 255, 255, 0.7)'] },
+  },
+  {
+    id: 'hunter',
+    name: 'CAZADOR',
+    body: [[24, 0], [4, -3], [-6, -11], [-2, -3], [-12, 0], [-2, 3], [-6, 11], [4, 3]],
+    stroke: '#ffb347',
+    fill: 'rgba(255, 179, 71, 0.12)',
+    lineWidth: 1.5,
+    glow: 0,
+    thrust: { x: -12, half: 3, min: 6, max: 16, colors: ['rgba(255, 140, 40, 0.9)', 'rgba(255, 220, 130, 0.7)'] },
+  },
+  {
+    id: 'ghost',
+    name: 'FANTASMA',
+    body: [[20, -2], [16, -9], [2, -11], [-8, -8], [-12, 0], [-8, 8], [2, 11], [16, 9], [20, 2]],
+    stroke: '#c792ff',
+    fill: 'rgba(199, 146, 255, 0.1)',
+    lineWidth: 1.5,
+    glow: 8,
+    thrust: { x: -12, half: 5, min: 5, max: 12, colors: ['rgba(199, 146, 255, 0.8)'] },
+  },
+  {
+    id: 'gold',
+    name: 'DORADA',
+    body: [[21, 0], [-2, -5], [-13, -10], [-8, 0], [-13, 10], [-2, 5]],
+    stroke: '#ffd700',
+    fill: 'rgba(255, 215, 0, 0.15)',
+    lineWidth: 2,
+    glow: 10,
+    thrust: { x: -13, half: 4, min: 6, max: 15, colors: ['rgba(255, 215, 0, 0.9)', 'rgba(255, 120, 0, 0.7)'] },
+  },
+];
+
+// Traza la silueta de una skin en el contexto actual; `scale` para el icono de vidas.
+function tracePath(body, scale = 1) {
+  ctx.beginPath();
+  ctx.moveTo(body[0][0] * scale, body[0][1] * scale);
+  for (let i = 1; i < body.length; i++)
+    ctx.lineTo(body[i][0] * scale, body[i][1] * scale);
+  ctx.closePath();
+}
+
 // ── Ship ──────────────────────────────────────────────────────────────────────
 class Ship {
   constructor() { this.reset(); }
@@ -255,30 +319,43 @@ class Ship {
     // Parpadeo durante invencibilidad de reaparición
     if (this.invincible > 0 && Math.floor(this.invincible * 8) % 2 === 0) return;
 
+    const skin = SKINS[currentSkinIndex];
+
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth   = 1.5;
-    ctx.lineJoin    = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineCap  = 'round';
 
-    // Silueta clásica: triángulo con muesca trasera
-    ctx.beginPath();
-    ctx.moveTo( 20,  0);   // nariz
-    ctx.lineTo(-12, -9);   // ala izquierda
-    ctx.lineTo( -7,  0);   // muesca trasera
-    ctx.lineTo(-12,  9);   // ala derecha
-    ctx.closePath();
+    if (skin.glow) {
+      ctx.shadowBlur  = skin.glow;
+      ctx.shadowColor = skin.stroke;
+    }
+
+    ctx.strokeStyle = skin.stroke;
+    ctx.lineWidth   = skin.lineWidth;
+    tracePath(skin.body);
+    if (skin.fill) {
+      ctx.fillStyle = skin.fill;
+      ctx.fill();
+    }
     ctx.stroke();
+    ctx.shadowBlur = 0;
 
-    // Llama del propulsor
+    // Llama del propulsor (una capa por color, la primera más larga)
     if (this.thrusting && Math.random() > 0.35) {
-      ctx.beginPath();
-      ctx.moveTo(-8, -4);
-      ctx.lineTo(-8 - rand(6, 14), 0);
-      ctx.lineTo(-8,  4);
-      ctx.strokeStyle = 'rgba(255, 130, 0, 0.85)';
-      ctx.stroke();
+      const t = skin.thrust;
+      for (let i = 0; i < t.colors.length; i++) {
+        const f   = 1 - i * 0.45;
+        const len = rand(t.min, t.max) * f;
+        ctx.beginPath();
+        ctx.moveTo(t.x, -t.half * f);
+        ctx.lineTo(t.x - len, 0);
+        ctx.lineTo(t.x,  t.half * f);
+        ctx.strokeStyle = t.colors[i];
+        ctx.lineWidth   = 1.5;
+        ctx.stroke();
+      }
     }
 
     ctx.restore();
@@ -399,6 +476,20 @@ let state;      // 'playing' | 'dead' | 'gameover'
 let deadTimer;
 let powerUpTimer;
 let shootingStarTimer;
+let currentSkinIndex = 0;
+let skinToast = 0;
+
+try {
+  const saved = localStorage.getItem('asteroids.skin');
+  const idx = SKINS.findIndex(s => s.id === saved);
+  if (idx >= 0) currentSkinIndex = idx;
+} catch (_) {}
+
+function cycleSkin() {
+  currentSkinIndex = (currentSkinIndex + 1) % SKINS.length;
+  skinToast = 1.6;
+  try { localStorage.setItem('asteroids.skin', SKINS[currentSkinIndex].id); } catch (_) {}
+}
 
 function spawnAsteroids(count) {
   const SAFE_DIST = 130;
@@ -476,6 +567,9 @@ function killShip() {
 
 // ── Update ────────────────────────────────────────────────────────────────────
 function update(dt) {
+  if (pressed('KeyS')) cycleSkin();
+  if (skinToast > 0) skinToast -= dt;
+
   if (state === 'gameover') {
     if (pressed('Space')) initGame();
     particles.forEach(p => p.update(dt));
@@ -568,18 +662,18 @@ function update(dt) {
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
 function drawLifeIcon(x, y) {
+  const skin = SKINS[currentSkinIndex];
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(-Math.PI / 2);
-  ctx.strokeStyle = '#fff';
+  ctx.strokeStyle = skin.stroke;
   ctx.lineWidth   = 1.2;
   ctx.lineJoin    = 'round';
-  ctx.beginPath();
-  ctx.moveTo( 9,  0);
-  ctx.lineTo(-6, -5);
-  ctx.lineTo(-3,  0);
-  ctx.lineTo(-6,  5);
-  ctx.closePath();
+  tracePath(skin.body, 0.45);
+  if (skin.fill) {
+    ctx.fillStyle = skin.fill;
+    ctx.fill();
+  }
   ctx.stroke();
   ctx.restore();
 }
@@ -618,6 +712,13 @@ function drawHUD() {
     ctx.lineWidth   = 1;
     ctx.strokeRect(bx + 0.5, by + 0.5, w - 1, h - 1);
   }
+
+  // Skin activa
+  const alpha = skinToast > 0 ? 0.95 : 0.4;
+  ctx.textAlign = 'right';
+  ctx.font = '13px monospace';
+  ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+  ctx.fillText(`S · SKIN: ${SKINS[currentSkinIndex].name}`, W - 14, H - 14);
 }
 
 function drawOverlay(title, sub) {
