@@ -32,3 +32,4 @@ npx serve .
 - Asteroid sizes are 1 (small), 2 (medium), 3 (large) — indexed into `RADII`, `SPEEDS`, `POINTS` arrays
 - No tests, no linting, no formatter — verify changes manually in browser
 - Ship skins live in the `SKINS` registry (data-driven: `body`, `stroke`, `fill`, `glow`, `thrust`); add new entries there. `currentSkinIndex` persists via `localStorage['asteroids.skin']` and cycles with `S`
+- Power-ups are data-driven: register new types in `POWERUP_RADII` (radius per type), add a spawn branch in `spawnPowerUp()`, an icon branch in `PowerUp.draw`, a pickup branch in `update()`, and a HUD row via `drawPowerBar(label, timer, color, duration, row)`. Timers live in `Ship` (e.g. `shieldTimer`, `tripleTimer`) and decrement in `Ship.update`

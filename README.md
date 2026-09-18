@@ -44,4 +44,7 @@ Luego visita `http://localhost:3000`.
 - 3 vidas con invencibilidad temporal al reaparecer (parpadeo)
 - Asteroides se parten en fragmentos más pequeños al ser destruidos
 - Partículas de explosión al destruir asteroides
+- Power-up de velocidad: doble velocidad durante 5 s
+- Power-up de triple tiro: 3 balas en paralelo durante 5 s
+- Power-up de escudo: destruye asteroides al recibir impacto durante 5 s
 - 5 skins de nave (forma, color y propulsor) seleccionables con `S` y persistentes en `localStorage`
