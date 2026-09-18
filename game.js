@@ -118,6 +118,79 @@ class Asteroid {
   }
 }
 
+// ── Estrella Fugaz ─────────────────────────────────────────────────────────────
+const SHOOTING_STAR = {
+  speed: 240,
+  ttl: 4,
+  points: 150,
+  size: 2,
+};
+
+class ShootingStar extends Asteroid {
+  constructor(x, y) {
+    super(x, y, SHOOTING_STAR.size);
+    this.size   = SHOOTING_STAR.size;
+    this.radius = RADII[this.size];
+    this.points = SHOOTING_STAR.points;
+    this.ttl    = SHOOTING_STAR.ttl;
+    this.trail  = [];
+
+    const angle = rand(0, Math.PI * 2);
+    const speed = SHOOTING_STAR.speed + rand(-20, 20);
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed;
+    this.rotSpeed = rand(-4, 4);
+  }
+
+  update(dt) {
+    super.update(dt);
+
+    // Estela: descarta posiciones si hubo salto por wrapping
+    const last = this.trail[this.trail.length - 1];
+    if (last && dist(last, this) > 100) this.trail.length = 0;
+    this.trail.push({ x: this.x, y: this.y });
+    if (this.trail.length > 12) this.trail.shift();
+
+    this.ttl -= dt;
+    if (this.ttl <= 0) {
+      this.dead = true;
+      explode(this.x, this.y, 8);   // se desintegra sin dar puntos
+    }
+  }
+
+  split() { return []; }
+
+  draw() {
+    // Estela desvaneciente (de atrás hacia adelante)
+    for (let i = 0; i < this.trail.length - 1; i++) {
+      const f = (i + 1) / this.trail.length;
+      const p = this.trail[i];
+      const q = this.trail[i + 1];
+      ctx.strokeStyle = `rgba(255, ${Math.floor(120 + f * 135)}, ${Math.floor(40 + f * 160)}, ${(f * 0.7).toFixed(2)})`;
+      ctx.lineWidth = 1 + f * 3;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(q.x, q.y);
+      ctx.stroke();
+    }
+
+    // Núcleo: polígono en tonos cálidos
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rot);
+    ctx.strokeStyle = 'rgb(255, 225, 130)';
+    ctx.lineWidth   = 1.5;
+    ctx.lineJoin    = 'round';
+    ctx.beginPath();
+    ctx.moveTo(this.verts[0][0], this.verts[0][1]);
+    for (let i = 1; i < this.verts.length; i++)
+      ctx.lineTo(this.verts[i][0], this.verts[i][1]);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 // ── Ship ──────────────────────────────────────────────────────────────────────
 class Ship {
   constructor() { this.reset(); }
@@ -325,6 +398,7 @@ let score, lives, level;
 let state;      // 'playing' | 'dead' | 'gameover'
 let deadTimer;
 let powerUpTimer;
+let shootingStarTimer;
 
 function spawnAsteroids(count) {
   const SAFE_DIST = 130;
@@ -348,6 +422,16 @@ function spawnPowerUp() {
   powerUps.push(new PowerUp(x, y, 'speed'));
 }
 
+function spawnShootingStar() {
+  const SAFE_DIST = 140;
+  let x, y;
+  do {
+    x = rand(0, W);
+    y = rand(0, H);
+  } while (Math.hypot(x - ship.x, y - ship.y) < SAFE_DIST);
+  asteroids.push(new ShootingStar(x, y));
+}
+
 function initGame() {
   ship          = new Ship();
   bullets   = [];
@@ -359,6 +443,7 @@ function initGame() {
   level  = 1;
   state  = 'playing';
   powerUpTimer = rand(6, 10);
+  shootingStarTimer = rand(12, 18);
   spawnAsteroids(4);
 }
 
@@ -369,6 +454,7 @@ function nextLevel() {
   powerUps  = [];
   ship.reset();
   powerUpTimer = rand(6, 10);
+  shootingStarTimer = rand(12, 18);
   spawnAsteroids(3 + level);
 }
 
@@ -402,6 +488,7 @@ function update(dt) {
     particles.forEach(p => p.update(dt));
     particles = particles.filter(p => !p.dead);
     asteroids.forEach(a => a.update(dt));
+    asteroids = asteroids.filter(a => !a.dead);
     if (deadTimer <= 0) { state = 'playing'; ship.reset(); }
     return;
   }
@@ -428,6 +515,13 @@ function update(dt) {
       spawnPowerUp();
       powerUpTimer = rand(10, 15);
     }
+
+    // Spawn de estrella fugaz periódico
+    shootingStarTimer -= dt;
+    if (shootingStarTimer <= 0) {
+      spawnShootingStar();
+      shootingStarTimer = rand(18, 26);
+    }
   }
 
   // Bala vs asteroide
@@ -437,7 +531,7 @@ function update(dt) {
       if (!a.dead && !b.dead && dist(b, a) < a.radius) {
         b.dead = true;
         a.dead = true;
-        score += POINTS[a.size];
+        score += (a.points || POINTS[a.size]);
         explode(a.x, a.y, a.size * 5);
         newAsteroids.push(...a.split());
       }
