@@ -1,0 +1,51 @@
+name: Format and Label New Issue
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  format-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Format, Label and Enrich Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const author = issue.user.login;
+            const createdAt = new Date(issue.created_at).toUTCString();
+            
+            // Mantener el contenido original tal cual
+            const originalBody = issue.body || "(Sin descripción proporcionada)";
+
+            // Añadir información relevante adicional para la revisión
+            const extraInfo = `
+            ---
+            ### 📌 Información de Revisión (Automática)
+            - **Autor:** @${author}
+            - **Fecha de creación:** ${createdAt}
+            - **Estado:** Pendiente de revisión
+            `;
+
+            const newBody = originalBody + "\n\n" + extraInfo;
+
+            // Definir etiquetas a añadir
+            const labelsToAdd = ['triage', 'needs-review'];
+
+            // Actualizar el issue con el nuevo cuerpo y etiquetas
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: newBody
+            });
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: labelsToAdd
+            });
