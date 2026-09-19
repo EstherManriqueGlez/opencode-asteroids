@@ -244,6 +244,18 @@ const SKINS = [
     glow: 10,
     thrust: { x: -13, half: 4, min: 6, max: 15, colors: ['rgba(255, 215, 0, 0.9)', 'rgba(255, 120, 0, 0.7)'] },
   },
+  {
+    id: 'violet',
+    name: 'VIOLETA',
+    body: [[22, 0], [6, -8], [-10, -12], [-5, 0], [-10, 12], [6, 8]],
+    stroke: '#a55eea',
+    fill: 'rgba(165, 94, 234, 0.15)',
+    lineWidth: 2,
+    glow: 14,
+    scale: 2,
+    pointsMultiplier: 2,
+    thrust: { x: -10, half: 4, min: 8, max: 18, colors: ['rgba(165, 94, 234, 0.9)', 'rgba(215, 170, 255, 0.7)'] },
+  },
 ];
 
 // Traza la silueta de una skin en el contexto actual; `scale` para el icono de vidas.
@@ -265,7 +277,7 @@ class Ship {
     this.angle  = -Math.PI / 2;
     this.vx     = 0;
     this.vy     = 0;
-    this.radius = 12;
+    this.radius = 12 * (SKINS[currentSkinIndex].scale || 1);
     this.thrusting     = false;
     this.invincible    = 3;
     this.shootCooldown = 0;
@@ -321,7 +333,7 @@ activateShield() {
   tryShoot() {
     if (this.shootCooldown > 0 || this.dead) return [];
     this.shootCooldown = 0.2;
-    const NOSE = 21;
+    const NOSE = 21 * (SKINS[currentSkinIndex].scale || 1);
     const ox = this.x + Math.cos(this.angle) * NOSE;
     const oy = this.y + Math.sin(this.angle) * NOSE;
 
@@ -345,6 +357,7 @@ activateShield() {
     if (this.invincible > 0 && Math.floor(this.invincible * 8) % 2 === 0) return;
 
     const skin = SKINS[currentSkinIndex];
+    const sc   = skin.scale || 1;
 
     ctx.save();
     ctx.translate(this.x, this.y);
@@ -359,7 +372,7 @@ activateShield() {
 
     ctx.strokeStyle = skin.stroke;
     ctx.lineWidth   = skin.lineWidth;
-    tracePath(skin.body);
+    tracePath(skin.body, sc);
     if (skin.fill) {
       ctx.fillStyle = skin.fill;
       ctx.fill();
@@ -372,11 +385,11 @@ activateShield() {
       const t = skin.thrust;
       for (let i = 0; i < t.colors.length; i++) {
         const f   = 1 - i * 0.45;
-        const len = rand(t.min, t.max) * f;
+        const len = rand(t.min, t.max) * f * sc;
         ctx.beginPath();
-        ctx.moveTo(t.x, -t.half * f);
-        ctx.lineTo(t.x - len, 0);
-        ctx.lineTo(t.x,  t.half * f);
+        ctx.moveTo(t.x * sc, -t.half * f * sc);
+        ctx.lineTo(t.x * sc - len, 0);
+        ctx.lineTo(t.x * sc,  t.half * f * sc);
         ctx.strokeStyle = t.colors[i];
         ctx.lineWidth   = 1.5;
         ctx.stroke();
@@ -389,7 +402,7 @@ activateShield() {
     if (this.shieldTimer > 0) {
       const pulse = 0.7 + 0.3 * Math.sin(this.shieldTimer * 9);
       ctx.beginPath();
-      ctx.arc(this.x, this.y, 25, 0, Math.PI * 2);
+      ctx.arc(this.x, this.y, 25 * sc, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(100, 220, 255, ${(pulse * 0.08).toFixed(3)})`;
       ctx.fill();
       ctx.strokeStyle = `rgba(120, 230, 255, ${(pulse * 0.8).toFixed(3)})`;
@@ -568,7 +581,16 @@ try {
 function cycleSkin() {
   currentSkinIndex = (currentSkinIndex + 1) % SKINS.length;
   skinToast = 1.6;
+  if (ship) ship.radius = 12 * (SKINS[currentSkinIndex].scale || 1);
   try { localStorage.setItem('asteroids.skin', SKINS[currentSkinIndex].id); } catch (_) {}
+}
+
+function scoreMultiplier() {
+  return SKINS[currentSkinIndex].pointsMultiplier || 1;
+}
+
+function addPoints(base) {
+  score += Math.round(base * scoreMultiplier());
 }
 
 function spawnAsteroids(count) {
@@ -705,7 +727,7 @@ function update(dt) {
       if (!a.dead && !b.dead && dist(b, a) < a.radius) {
         b.dead = true;
         a.dead = true;
-        score += (a.points || POINTS[a.size]);
+        addPoints(a.points || POINTS[a.size]);
         explode(a.x, a.y, a.size * 5);
         newAsteroids.push(...a.split());
       }
@@ -722,7 +744,7 @@ function update(dt) {
         if (ship.shieldTimer > 0) {
           // El escudo destruye al asteroide
           a.dead = true;
-          score += (a.points || POINTS[a.size]);
+          addPoints(a.points || POINTS[a.size]);
           explode(a.x, a.y, a.size * 5);
           shieldSplits.push(...a.split());
         } else {
@@ -756,13 +778,14 @@ function update(dt) {
 // ── Draw ──────────────────────────────────────────────────────────────────────
 function drawLifeIcon(x, y) {
   const skin = SKINS[currentSkinIndex];
+  const sc   = skin.scale || 1;
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(-Math.PI / 2);
   ctx.strokeStyle = skin.stroke;
   ctx.lineWidth   = 1.2;
   ctx.lineJoin    = 'round';
-  tracePath(skin.body, 0.45);
+  tracePath(skin.body, 0.45 / sc);
   if (skin.fill) {
     ctx.fillStyle = skin.fill;
     ctx.fill();
@@ -816,7 +839,9 @@ function drawHUD() {
   ctx.textAlign = 'right';
   ctx.font = '13px monospace';
   ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-  ctx.fillText(`S · SKIN: ${SKINS[currentSkinIndex].name}`, W - 14, H - 14);
+  const mult = scoreMultiplier();
+  const suffix = mult > 1 ? `  ×${mult} PUNTOS` : '';
+  ctx.fillText(`S · SKIN: ${SKINS[currentSkinIndex].name}${suffix}`, W - 14, H - 14);
 }
 
 function drawOverlay(title, sub) {

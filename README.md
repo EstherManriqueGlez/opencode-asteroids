@@ -47,4 +47,5 @@ Luego visita `http://localhost:3000`.
 - Power-up de velocidad: doble velocidad durante 5 s
 - Power-up de triple tiro: 3 balas en paralelo durante 5 s
 - Power-up de escudo: destruye asteroides al recibir impacto durante 5 s
-- 5 skins de nave (forma, color y propulsor) seleccionables con `S` y persistentes en `localStorage`
+- 6 skins de nave (forma, color y propulsor) seleccionables con `S` y persistentes en `localStorage`
+- Skin **VIOLETA**: doble de grande y otorga el doble de puntos por asteroide
